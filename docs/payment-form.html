@@ -472,7 +472,7 @@
             }
 
             // Call server API
-            const response = await fetch('/api/tokenize', {
+            const response = await fetch('/.netlify/functions/tokenize', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
