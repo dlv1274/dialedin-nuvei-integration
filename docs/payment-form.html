@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Payment Tokenization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #fafbfc;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 16px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .payment-type {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .payment-option {
+            flex: 1;
+            position: relative;
+        }
+
+        .payment-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .payment-option label {
+            display: block;
+            padding: 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #fafbfc;
+            font-weight: 500;
+        }
+
+        .payment-option input[type="radio"]:checked + label {
+            border-color: #667eea;
+            background: #f0f4ff;
+            color: #667eea;
+        }
+
+        .card-fields, .ach-fields {
+            display: none;
+        }
+
+        .card-fields.active, .ach-fields.active {
+            display: block;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .security-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 20px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .security-icon {
+            margin-right: 8px;
+            color: #28a745;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #999;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 24px;
+                margin: 10px;
+            }
+            
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+            
+            .payment-type {
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button class="close-btn" onclick="closeWindow()">&times;</button>
+        
+        <div class="header">
+            <h1>Secure Payment Setup</h1>
+            <p>Tokenize payment information for future processing</p>
+        </div>
+
+        <form id="paymentForm">
+            <div class="payment-type">
+                <div class="payment-option">
+                    <input type="radio" id="card" name="paymentType" value="Charge Card" checked>
+                    <label for="card">Credit Card</label>
+                </div>
+                <div class="payment-option">
+                    <input type="radio" id="ach" name="paymentType" value="EFT">
+                    <label for="ach">Bank Account (ACH)</label>
+                </div>
+            </div>
+
+            <div class="card-fields active" id="cardFields">
+                <div class="form-group">
+                    <label for="cardNumber">Card Number</label>
+                    <input type="text" id="cardNumber" class="form-control" placeholder="1234 5678 9012 3456" maxlength="19">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="expiryMonth">Exp. Month</label>
+                        <select id="expiryMonth" class="form-control">
+                            <option value="">MM</option>
+                            <option value="01">01</option>
+                            <option value="02">02</option>
+                            <option value="03">03</option>
+                            <option value="04">04</option>
+                            <option value="05">05</option>
+                            <option value="06">06</option>
+                            <option value="07">07</option>
+                            <option value="08">08</option>
+                            <option value="09">09</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="expiryYear">Exp. Year</label>
+                        <select id="expiryYear" class="form-control">
+                            <option value="">YY</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="cvv">CVV</label>
+                        <input type="text" id="cvv" class="form-control" placeholder="123" maxlength="4">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="cardName">Cardholder Name</label>
+                    <input type="text" id="cardName" class="form-control" placeholder="John Doe">
+                </div>
+            </div>
+
+            <div class="ach-fields" id="achFields">
+                <div class="form-group">
+                    <label for="routingNumber">Routing Number</label>
+                    <input type="text" id="routingNumber" class="form-control" placeholder="123456789" maxlength="9">
+                </div>
+                
+                <div class="form-group">
+                    <label for="accountNumber">Account Number</label>
+                    <input type="text" id="accountNumber" class="form-control" placeholder="Account Number">
+                </div>
+
+                <div class="form-group">
+                    <label for="accountName">Account Holder Name</label>
+                    <input type="text" id="accountName" class="form-control" placeholder="John Doe">
+                </div>
+
+                <div class="form-group">
+                    <label for="accountType">Account Type</label>
+                    <select id="accountType" class="form-control">
+                        <option value="">Select Account Type</option>
+                        <option value="checking">Checking</option>
+                        <option value="savings">Savings</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">
+                <span id="btnText">Tokenize Payment Method</span>
+            </button>
+        </form>
+
+        <div class="status" id="status"></div>
+
+        <div class="security-info">
+            <span class="security-icon">🔒</span>
+            Your payment information is encrypted and secure
+        </div>
+    </div>
+
+    <script>
+        // Configuration - These would be passed as URL parameters in real implementation
+        const config = {
+            nuveiMerchantId: 'YOUR_MERCHANT_ID',
+            nuveiMerchantSiteId: 'YOUR_SITE_ID',
+            nuveiSecretKey: 'YOUR_SECRET_KEY',
+            dialedInToken: 'YOUR_DIALEDIN_TOKEN',
+            dialedInAccId: 'YOUR_DIALEDIN_ACCID',
+            contactId: 'CURRENT_CONTACT_ID', // Passed from DialedIn
+            callId: 'CURRENT_CALL_ID' // Passed from DialedIn
+        };
+
+        // Initialize form
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeForm();
+            populateYears();
+            setupEventListeners();
+        });
+
+        function initializeForm() {
+            // Get URL parameters (contact info from DialedIn)
+            const urlParams = new URLSearchParams(window.location.search);
+            config.contactId = urlParams.get('contactId') || 'DEFAULT_CONTACT';
+            config.callId = urlParams.get('callId') || 'DEFAULT_CALL';
+        }
+
+        function populateYears() {
+            const yearSelect = document.getElementById('expiryYear');
+            const currentYear = new Date().getFullYear();
+            for (let i = 0; i < 20; i++) {
+                const year = currentYear + i;
+                const yearStr = year.toString().slice(-2);
+                const option = document.createElement('option');
+                option.value = yearStr;
+                option.textContent = yearStr;
+                yearSelect.appendChild(option);
+            }
+        }
+
+        function setupEventListeners() {
+            // Payment type toggle
+            document.querySelectorAll('input[name="paymentType"]').forEach(radio => {
+                radio.addEventListener('change', togglePaymentFields);
+            });
+
+            // Card number formatting
+            document.getElementById('cardNumber').addEventListener('input', formatCardNumber);
+
+            // Form submission
+            document.getElementById('paymentForm').addEventListener('submit', handleSubmit);
+
+            // CVV numeric only
+            document.getElementById('cvv').addEventListener('input', function(e) {
+                e.target.value = e.target.value.replace(/\D/g, '');
+            });
+
+            // Routing number numeric only
+            document.getElementById('routingNumber').addEventListener('input', function(e) {
+                e.target.value = e.target.value.replace(/\D/g, '');
+            });
+        }
+
+        function togglePaymentFields() {
+            const paymentType = document.querySelector('input[name="paymentType"]:checked').value;
+            const cardFields = document.getElementById('cardFields');
+            const achFields = document.getElementById('achFields');
+
+            if (paymentType === 'Charge Card') {
+                cardFields.classList.add('active');
+                achFields.classList.remove('active');
+            } else {
+                cardFields.classList.remove('active');
+                achFields.classList.add('active');
+            }
+        }
+
+        function formatCardNumber(e) {
+            let value = e.target.value.replace(/\s/g, '').replace(/\D/g, '');
+            let formattedValue = value.replace(/(\d{4})(?=\d)/g, '$1 ');
+            
+            if (formattedValue.length <= 19) {
+                e.target.value = formattedValue;
+            }
+        }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const status = document.getElementById('status');
+            
+            // Disable form
+            submitBtn.disabled = true;
+            btnText.textContent = 'Processing...';
+            status.style.display = 'none';
+
+            try {
+                const paymentType = document.querySelector('input[name="paymentType"]:checked').value;
+                
+                if (paymentType === 'Charge Card') {
+                    await tokenizeCard();
+                } else {
+                    await tokenizeACH();
+                }
+                
+            } catch (error) {
+                console.error('Tokenization error:', error);
+                showStatus('Error tokenizing payment method. Please try again.', 'error');
+            } finally {
+                // Re-enable form
+                submitBtn.disabled = false;
+                btnText.textContent = 'Tokenize Payment Method';
+            }
+        }
+
+        async function tokenizeCard() {
+            const cardData = {
+                cardNumber: document.getElementById('cardNumber').value.replace(/\s/g, ''),
+                cardHolderName: document.getElementById('cardName').value,
+                expirationMonth: document.getElementById('expiryMonth').value,
+                expirationYear: document.getElementById('expiryYear').value,
+                CVV: document.getElementById('cvv').value
+            };
+
+            // Validate card data
+            if (!cardData.cardNumber || !cardData.expirationMonth || !cardData.expirationYear || !cardData.CVV) {
+                throw new Error('Please fill in all required card fields');
+            }
+
+            // Call server API
+            const response = await fetch('/api/tokenize', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    paymentData: cardData,
+                    type: 'card',
+                    contactId: config.contactId
+                })
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                showStatus('Card successfully tokenized and saved!', 'success');
+                setTimeout(() => closeWindow(), 2000);
+            } else {
+                throw new Error(result.error || 'Tokenization failed');
+            }
+        }
+
+        async function tokenizeACH() {
+            const achData = {
+                routingNumber: document.getElementById('routingNumber').value,
+                accountNumber: document.getElementById('accountNumber').value,
+                accountHolderName: document.getElementById('accountName').value,
+                accountType: document.getElementById('accountType').value
+            };
+
+            // Validate ACH data
+            if (!achData.routingNumber || !achData.accountNumber || !achData.accountHolderName || !achData.accountType) {
+                throw new Error('Please fill in all required bank account fields');
+            }
+
+            // Call server API
+            const response = await fetch('/api/tokenize', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    paymentData: achData,
+                    type: 'ach',
+                    contactId: config.contactId
+                })
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                showStatus('Bank account successfully tokenized and saved!', 'success');
+                setTimeout(() => closeWindow(), 2000);
+            } else {
+                throw new Error(result.error || 'Tokenization failed');
+            }
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+
+        function closeWindow() {
+            // In DialedIn integration, this would close the pop-up window
+            if (window.opener) {
+                window.close();
+            } else {
+                showStatus('Payment tokenization complete. You can close this window.', 'success');
+            }
+        }
+
+        // Handle window close confirmation
+        window.addEventListener('beforeunload', function(e) {
+            const hasData = document.getElementById('cardNumber').value || 
+                           document.getElementById('routingNumber').value;
+            
+            if (hasData) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+</body>
+</html>
