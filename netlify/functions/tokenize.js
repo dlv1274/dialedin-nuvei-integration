@@ -44,6 +44,36 @@ exports.handler = async (event, context) => {
                 })
             };
         }
+
+        // Check for required environment variables
+        if (!process.env.NUVEI_MERCHANT_ID || !process.env.NUVEI_SECRET_KEY) {
+            console.error('[ERROR] Missing required Nuvei environment variables');
+            return {
+                statusCode: 500,
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    error: 'Server configuration error: Missing Nuvei credentials' 
+                })
+            };
+        }
+
+        // Check for Site ID
+        if (!process.env.NUVEI_SITE_ID) {
+            console.error('[ERROR] Missing NUVEI_SITE_ID environment variable');
+            return {
+                statusCode: 500,
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    error: 'Server configuration error: Missing Nuvei Site ID. Please contact administrator.' 
+                })
+            };
+        }
         
         // Generate Nuvei authentication
         const timestamp = Math.floor(Date.now() / 1000);
