@@ -22,3 +22,20 @@
     "node": ">=16.0.0"
   }
 }
+{
+  "name": "dialedin-nuvei-integration",
+  "version": "1.0.0",
+  "description": "Payment tokenization integration between DialedIn and Nuvei",
+  "main": "server.js",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'No build step required'",
+    "deploy": "netlify deploy --prod"
+  },
+  "dependencies": {
+    "axios": "^1.4.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  }
+}
