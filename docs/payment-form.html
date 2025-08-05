@@ -473,16 +473,16 @@
 
             // Call server API
             const response = await fetch('https://didnuv.netlify.app/.netlify/functions/tokenize', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    paymentData: cardData,
-                    type: 'card',
-                    contactId: config.contactId
-                })
-            });
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        paymentData: paymentData,
+        type: type,
+        contactId: contactId
+    })
+});
 
             const result = await response.json();
             
