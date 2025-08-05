@@ -349,8 +349,9 @@
             nuveiSecretKey: 'YOUR_SECRET_KEY',
             dialedInToken: 'YOUR_DIALEDIN_TOKEN',
             dialedInAccId: 'YOUR_DIALEDIN_ACCID',
-            contactId: 'CURRENT_CONTACT_ID', // Passed from DialedIn
-            callId: 'CURRENT_CALL_ID' // Passed from DialedIn
+            contactId: 'CURRENT_CONTACT_ID',
+            callId: 'CURRENT_CALL_ID',
+            apiBaseUrl: 'https://didnuv.netlify.app/.netlify/functions'
         };
 
         // Initialize form
@@ -365,6 +366,12 @@
             const urlParams = new URLSearchParams(window.location.search);
             config.contactId = urlParams.get('contactId') || 'DEFAULT_CONTACT';
             config.callId = urlParams.get('callId') || 'DEFAULT_CALL';
+            
+            // Override API base URL if provided
+            const apiUrl = urlParams.get('apiUrl');
+            if (apiUrl) {
+                config.apiBaseUrl = apiUrl;
+            }
         }
 
         function populateYears() {
@@ -401,6 +408,11 @@
             document.getElementById('routingNumber').addEventListener('input', function(e) {
                 e.target.value = e.target.value.replace(/\D/g, '');
             });
+
+            // Account number numeric only for better UX
+            document.getElementById('accountNumber').addEventListener('input', function(e) {
+                e.target.value = e.target.value.replace(/[^0-9]/g, '');
+            });
         }
 
         function togglePaymentFields() {
@@ -426,6 +438,67 @@
             }
         }
 
+        function validateCardData(cardData) {
+            const errors = [];
+            
+            if (!cardData.cardNumber || cardData.cardNumber.length < 13) {
+                errors.push('Please enter a valid card number');
+            }
+            
+            if (!cardData.expirationMonth) {
+                errors.push('Please select expiration month');
+            }
+            
+            if (!cardData.expirationYear) {
+                errors.push('Please select expiration year');
+            }
+            
+            if (!cardData.CVV || cardData.CVV.length < 3) {
+                errors.push('Please enter a valid CVV');
+            }
+            
+            if (!cardData.cardHolderName.trim()) {
+                errors.push('Please enter cardholder name');
+            }
+            
+            // Check if card is expired
+            if (cardData.expirationMonth && cardData.expirationYear) {
+                const currentDate = new Date();
+                const currentYear = currentDate.getFullYear() % 100;
+                const currentMonth = currentDate.getMonth() + 1;
+                const expYear = parseInt(cardData.expirationYear);
+                const expMonth = parseInt(cardData.expirationMonth);
+                
+                if (expYear < currentYear || (expYear === currentYear && expMonth < currentMonth)) {
+                    errors.push('Card has expired');
+                }
+            }
+            
+            return errors;
+        }
+
+        function validateACHData(achData) {
+            const errors = [];
+            
+            if (!achData.routingNumber || achData.routingNumber.length !== 9) {
+                errors.push('Please enter a valid 9-digit routing number');
+            }
+            
+            if (!achData.accountNumber || achData.accountNumber.length < 4) {
+                errors.push('Please enter a valid account number');
+            }
+            
+            if (!achData.accountHolderName.trim()) {
+                errors.push('Please enter account holder name');
+            }
+            
+            if (!achData.accountType) {
+                errors.push('Please select account type');
+            }
+            
+            return errors;
+        }
+
         async function handleSubmit(e) {
             e.preventDefault();
             
@@ -433,10 +506,12 @@
             const btnText = document.getElementById('btnText');
             const status = document.getElementById('status');
             
+            // Clear previous status
+            status.style.display = 'none';
+            
             // Disable form
             submitBtn.disabled = true;
             btnText.textContent = 'Processing...';
-            status.style.display = 'none';
 
             try {
                 const paymentType = document.querySelector('input[name="paymentType"]:checked').value;
@@ -449,7 +524,7 @@
                 
             } catch (error) {
                 console.error('Tokenization error:', error);
-                showStatus('Error tokenizing payment method. Please try again.', 'error');
+                showStatus(error.message || 'Error tokenizing payment method. Please try again.', 'error');
             } finally {
                 // Re-enable form
                 submitBtn.disabled = false;
@@ -467,22 +542,32 @@
             };
 
             // Validate card data
-            if (!cardData.cardNumber || !cardData.expirationMonth || !cardData.expirationYear || !cardData.CVV) {
-                throw new Error('Please fill in all required card fields');
+            const validationErrors = validateCardData(cardData);
+            if (validationErrors.length > 0) {
+                throw new Error(validationErrors[0]);
             }
 
             // Call server API
-            const response = await fetch('https://didnuv.netlify.app/.netlify/functions/tokenize', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-        paymentData: paymentData,
-        type: type,
-        contactId: contactId
-    })
-});
+            const response = await fetch(`${config.apiBaseUrl}/tokenize`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    paymentData: cardData,
+                    type: 'card',
+                    contactId: config.contactId,
+                    callId: config.callId,
+                    merchantConfig: {
+                        merchantId: config.nuveiMerchantId,
+                        siteId: config.nuveiMerchantSiteId
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
             const result = await response.json();
             
@@ -503,12 +588,13 @@
             };
 
             // Validate ACH data
-            if (!achData.routingNumber || !achData.accountNumber || !achData.accountHolderName || !achData.accountType) {
-                throw new Error('Please fill in all required bank account fields');
+            const validationErrors = validateACHData(achData);
+            if (validationErrors.length > 0) {
+                throw new Error(validationErrors[0]);
             }
 
             // Call server API
-            const response = await fetch('/api/tokenize', {
+            const response = await fetch(`${config.apiBaseUrl}/tokenize`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -516,9 +602,18 @@
                 body: JSON.stringify({
                     paymentData: achData,
                     type: 'ach',
-                    contactId: config.contactId
+                    contactId: config.contactId,
+                    callId: config.callId,
+                    merchantConfig: {
+                        merchantId: config.nuveiMerchantId,
+                        siteId: config.nuveiMerchantSiteId
+                    }
                 })
             });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
             const result = await response.json();
             
@@ -548,12 +643,14 @@
 
         // Handle window close confirmation
         window.addEventListener('beforeunload', function(e) {
-            const hasData = document.getElementById('cardNumber').value || 
-                           document.getElementById('routingNumber').value;
+            const hasCardData = document.getElementById('cardNumber').value.trim() || 
+                               document.getElementById('cardName').value.trim();
+            const hasACHData = document.getElementById('routingNumber').value.trim() || 
+                              document.getElementById('accountNumber').value.trim();
             
-            if (hasData) {
+            if (hasCardData || hasACHData) {
                 e.preventDefault();
-                e.returnValue = '';
+                e.returnValue = 'You have unsaved payment information. Are you sure you want to leave?';
             }
         });
     </script>
